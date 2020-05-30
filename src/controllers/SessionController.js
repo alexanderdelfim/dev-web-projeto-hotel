@@ -1,3 +1,4 @@
+import * as Yup from 'yup';
 import Usuario from '../models/Usuario';
 
 class SessionController{
@@ -6,30 +7,60 @@ class SessionController{
         return res.json(usuarios);
     }
 
-    async show(req, res) {
-        const id = req.params.id;
-        let usuario = await Usuario.findById(id);
-        return res.json(usuario);
-    }
-
     async store(req, res) {
-        const { email } = req.body;
-        let usuario = await Usuario.findOne({email});
-        if(!usuario) {
-            usuario = await Usuario.create({email});
+
+        const { email, nome } = req.body;
+        let usuario = await Usuario.findOne({ email });
+
+        const schema = Yup.object().shape({
+            email: Yup.string().required(),
+            nome: Yup.string().required()
+        });
+
+        if (!(await schema.isValid(req.body))) {
+            return res.status(400).json({
+                mensagem: "Dados inválidos!"
+            })
         }
+
+        if(!usuario) {
+            usuario = await Usuario.create({ email, nome });
+        }
+        
         return res.json(usuario);
     }
 
     async update(req, res) {
-        const usuario = await Usuario.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+        const { usuario_id } = req.headers;
+        const { nome } = req.body;
+
+        Usuario.findById(usuario_id).catch((err) => {
+            return res.status(401).json({
+                mensagem: "Usuario não autrizado!"
+            });
+        })
+
+        const usuario = await Usuario.updateOne({
+            id: usuario_id,
+            nome
+        });
+
         return res.json(usuario);
     }
 
     async destroy(req, res) {
-        await Usuario.findByIdAndRemove( req.params.id );
-        return res.json({resposta: "Usuario removido"});
+
+        const { usuario_id } = req.params;
+
+        await Usuario.findByIdAndRemove( usuario_id ).catch((err) => {
+            return res.status(401).json({
+                mensagem: "Erro ao remover usuario!"
+            });
+        });
+        
+        return res.json({ mensagem: 'Usuario removido com sucesso!' });
+        }
     }
-}
 
 export default new SessionController;
